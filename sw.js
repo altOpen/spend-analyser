@@ -1,4 +1,6 @@
-const CACHE_NAME = 'spend-analyser-v1';
+// CHANGE THIS VERSION NUMBER (e.g., to v3, v4) every time you update your index.html on GitHub
+const CACHE_NAME = 'spend-analyser-v2';
+
 const ASSETS = [
   'index.html',
   'manifest.json',
@@ -6,17 +8,16 @@ const ASSETS = [
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// Installs core configuration cache frame
+// Install: Cache all essential files
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
-// Cleans up depreciated legacy storage environments
+// Activate: Delete old caches when the version number changes
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -32,11 +33,18 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Responds cleanly with network-fallback client asset rendering
+// Fetch: Serve from cache, fallback to network
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       return cachedResponse || fetch(event.request);
     })
   );
+});
+
+// Listen for messages from index.html to force an immediate update
+self.addEventListener('message', event => {
+  if (event.data && event.data.action === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });
