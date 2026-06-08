@@ -6,8 +6,14 @@
     <title>Spend Analyser</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
+    
+    <!-- UI and Chart Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans pb-12">
 
@@ -16,19 +22,21 @@
     </div>
 
     <header class="bg-indigo-600 text-white shadow-md p-4 sticky top-0 z-40">
-        <div class="max-w-4xl mx-auto flex flex-wrap justify-between items-center gap-2">
+        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
             <h1 class="text-xl font-bold tracking-tight">Spend Analyser</h1>
             <div class="flex space-x-1 sm:space-x-2 overflow-x-auto">
                 <button onclick="switchTab('dashboard')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Dashboard</button>
                 <button onclick="switchTab('add-spend')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Log Spend</button>
                 <button onclick="switchTab('history')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">History</button>
                 <button onclick="switchTab('recurring')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Recurring</button>
+                <button onclick="switchTab('data-manager')" class="px-2 sm:px-3 py-1.5 rounded-md bg-indigo-800 hover:bg-indigo-900 transition font-medium text-xs sm:text-sm whitespace-nowrap">Data Manager</button>
             </div>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto p-4 mt-4">
         
+        <!-- DASHBOARD TAB -->
         <section id="tab-dashboard" class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -45,8 +53,7 @@
                 <h3 class="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-indigo-600"></span> Recurring Obligations
                 </h3>
-                <div id="recurring-widget-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    </div>
+                <div id="recurring-widget-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -65,6 +72,7 @@
             </div>
         </section>
 
+        <!-- ADD SPEND TAB -->
         <section id="tab-add-spend" class="hidden max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
             <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Log Daily Transaction</h2>
             <form id="spend-form" onsubmit="handleSpendSubmit(event)" class="space-y-4">
@@ -135,6 +143,7 @@
             </form>
         </section>
 
+        <!-- HISTORY TAB -->
         <section id="tab-history" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
                 <div class="flex justify-between items-center mb-4">
@@ -153,13 +162,13 @@
                                 <th class="p-3">Remarks</th>
                             </tr>
                         </thead>
-                        <tbody id="history-table-body" class="text-sm divide-y divide-gray-100">
-                            </tbody>
+                        <tbody id="history-table-body" class="text-sm divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
             </div>
         </section>
 
+        <!-- RECURRING TAB -->
         <section id="tab-recurring" class="hidden space-y-6">
             <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
                 <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Manage Recurring Profiles</h2>
@@ -181,7 +190,7 @@
                                 <option value="Loan EMI">Loan EMI</option>
                                 <option value="Wifi Bill">Wifi Bill</option>
                                 <option value="Loan to Family/ Friends">Loan to Family / Friends</option>
-                            <option value="Savings and Premium">Savings and Premium</option>
+                                <option value="Savings and Premium">Savings and Premium</option>
                                 <option value="Donations">Donations</option>
                                 <option value="Others">Others</option>
                             </select>
@@ -212,9 +221,45 @@
                                 <th class="p-3 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="recurring-table-body" class="text-sm divide-y divide-gray-100">
-                            </tbody>
+                        <tbody id="recurring-table-body" class="text-sm divide-y divide-gray-100"></tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- DATA MANAGER TAB (NEW) -->
+        <section id="tab-data-manager" class="hidden space-y-6">
+            
+            <!-- Professional PDF Export -->
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Generate Monthly Report (PDF)</h2>
+                <p class="text-sm text-gray-500">Download a professional, row-by-row breakdown of your expenditures for a specific month.</p>
+                <div class="flex flex-col sm:flex-row gap-4 items-end">
+                    <div class="w-full sm:w-1/2">
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Select Month & Year</label>
+                        <input type="month" id="export-month" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                    <button onclick="generatePDF()" class="w-full sm:w-1/2 bg-red-600 text-white rounded-lg p-2.5 font-bold hover:bg-red-700 shadow-md transition cursor-pointer">Download PDF Report</button>
+                </div>
+            </div>
+
+            <!-- Database Backup and Restore -->
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-6">
+                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Cross-Device Sync & Backup</h2>
+                
+                <div class="space-y-2">
+                    <h3 class="text-sm font-bold text-gray-800">1. Export Data (Backup)</h3>
+                    <p class="text-xs text-gray-500 mb-2">Download your complete secure database file to move it to another device.</p>
+                    <button onclick="exportJSONBackup()" class="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-indigo-700 shadow-md transition cursor-pointer">Download JSON Backup</button>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4 space-y-2">
+                    <h3 class="text-sm font-bold text-gray-800">2. Import Data (Restore)</h3>
+                    <p class="text-xs text-gray-500 mb-2">Select a previously downloaded JSON backup file to overwrite current data.</p>
+                    <div class="flex items-center gap-4">
+                        <input type="file" id="import-file" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <button onclick="importJSONBackup()" class="bg-emerald-600 text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-emerald-700 shadow-md transition cursor-pointer whitespace-nowrap">Restore Data</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -226,7 +271,7 @@
         let pieChartInstance = null;
         let barChartInstance = null;
 
-        // Initialize IndexedDB Browser Engine
+        // Initialize IndexedDB
         function initDatabase() {
             const request = indexedDB.open("SpendAnalyserDB", 1);
             
@@ -253,16 +298,20 @@
             document.getElementById('form-spend-date').value = localDate;
             document.getElementById('form-spend-time').value = now.toTimeString().split(' ')[0].slice(0, 5);
             document.getElementById('form-rec-duedate').value = localDate;
+            
+            const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            document.getElementById('export-month').value = currentMonthStr;
         }
 
         function switchTab(tabId) {
-            ['dashboard', 'add-spend', 'history', 'recurring'].forEach(tab => {
+            ['dashboard', 'add-spend', 'history', 'recurring', 'data-manager'].forEach(tab => {
                 document.getElementById(`tab-${tab}`).classList.add('hidden');
             });
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
             if(tabId === 'dashboard' || tabId === 'history') syncUIComponents();
         }
 
+        // --- CORE DB WRITE OPERATIONS ---
         function handleSpendSubmit(event) {
             event.preventDefault();
             const transaction = db.transaction(["spends", "recurring"], "readwrite");
@@ -346,6 +395,7 @@
             };
         }
 
+        // --- SYNC & RENDER ---
         function syncUIComponents() {
             const transaction = db.transaction(["spends", "recurring"], "readonly");
             const spendStore = transaction.objectStore("spends");
@@ -368,7 +418,6 @@
             const tableBody = document.getElementById('history-table-body');
             tableBody.innerHTML = '';
 
-            // Sort Ascending (Oldest to Newest) based on combined Date and Time
             spends.sort((a, b) => {
                 const dateA = new Date(`${a.date}T${a.time}`);
                 const dateB = new Date(`${b.date}T${b.time}`);
@@ -539,32 +588,158 @@
             });
         }
 
-        // PWA Registration and Auto-Update Logic
+        // --- NEW: EXPORT TO PDF ---
+        function generatePDF() {
+            const monthInput = document.getElementById('export-month').value;
+            if(!monthInput) return alert("Please select a month");
+            
+            const [year, month] = monthInput.split('-');
+
+            const transaction = db.transaction(["spends"], "readonly");
+            const spendStore = transaction.objectStore("spends");
+            
+            spendStore.getAll().onsuccess = function(e) { 
+                const allSpends = e.target.result;
+                
+                // Filter by chosen month
+                const filteredSpends = allSpends.filter(item => {
+                    const itemDate = new Date(item.date);
+                    return String(itemDate.getFullYear()) === year && String(itemDate.getMonth() + 1).padStart(2, '0') === month;
+                });
+
+                // Sort Ascending
+                filteredSpends.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // PDF Header
+                doc.setFontSize(18);
+                doc.setTextColor(79, 70, 229); // Indigo
+                doc.text("Spend Analyser - Monthly Report", 14, 22);
+                doc.setFontSize(11);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Billing Period: ${month}/${year}`, 14, 30);
+
+                let totalAmount = 0;
+                const tableData = filteredSpends.map((item, index) => {
+                    totalAmount += item.amount;
+                    return [
+                        index + 1,
+                        `${item.date} ${item.time}`,
+                        item.category,
+                        item.mode,
+                        item.where || '-',
+                        `Rs. ${item.amount.toFixed(2)}`
+                    ];
+                });
+
+                if(tableData.length === 0) {
+                    alert("No data found for this month to generate PDF.");
+                    return;
+                }
+
+                // AutoTable Plugin
+                doc.autoTable({
+                    startY: 35,
+                    head: [['#', 'Date & Time', 'Category', 'Mode', 'Vendor', 'Amount']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [79, 70, 229] },
+                    foot: [['', '', '', '', 'TOTAL MONTHLY SPEND:', `Rs. ${totalAmount.toFixed(2)}`]],
+                    footStyles: { fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold' }
+                });
+
+                doc.save(`SpendReport_${year}_${month}.pdf`);
+            };
+        }
+
+        // --- NEW: EXPORT & IMPORT JSON (BACKUP/RESTORE) ---
+        function exportJSONBackup() {
+            const transaction = db.transaction(["spends", "recurring"], "readonly");
+            const spendStore = transaction.objectStore("spends");
+            const recStore = transaction.objectStore("recurring");
+
+            let backupData = { spends: [], recurring: [] };
+
+            spendStore.getAll().onsuccess = function(e1) {
+                backupData.spends = e1.target.result;
+                recStore.getAll().onsuccess = function(e2) {
+                    backupData.recurring = e2.target.result;
+
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    downloadAnchorNode.setAttribute("download", `SpendBackup_${dateStr}.json`);
+                    document.body.appendChild(downloadAnchorNode); 
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                };
+            };
+        }
+
+        function importJSONBackup() {
+            const fileInput = document.getElementById('import-file');
+            if(fileInput.files.length === 0) return alert("Please select a JSON backup file first.");
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(!data.spends || !data.recurring) throw new Error("Invalid Format");
+
+                    if(confirm("WARNING: This will erase all current data on this device and replace it with the backup. Proceed?")) {
+                        const transaction = db.transaction(["spends", "recurring"], "readwrite");
+                        const spendStore = transaction.objectStore("spends");
+                        const recStore = transaction.objectStore("recurring");
+
+                        // Clear current tables
+                        spendStore.clear();
+                        recStore.clear();
+
+                        // Add new records
+                        data.spends.forEach(item => spendStore.add(item));
+                        data.recurring.forEach(item => recStore.add(item));
+
+                        transaction.oncomplete = function() {
+                            alert("Data Restored Successfully!");
+                            fileInput.value = ""; // Reset input
+                            syncUIComponents();
+                        };
+                    }
+                } catch(error) {
+                    alert("Error parsing file. Please ensure it is a valid Spend Analyser backup.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // PWA Registration
         window.onload = function() {
             initDatabase();
             
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').then(reg => {
-                    // Check for updates periodically when user interacts
                     reg.addEventListener('updatefound', () => {
                         const newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // Show toast notification
                                 document.getElementById('update-toast').classList.remove('hidden');
-                                // Force new service worker to activate
                                 newWorker.postMessage({ action: 'skipWaiting' });
                             }
                         });
                     });
                 });
 
-                // Auto-refresh the page when the new Service Worker takes over
                 let refreshing = false;
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
                     if (!refreshing) {
                         refreshing = true;
-                        setTimeout(() => window.location.reload(), 1500); // 1.5s delay to let user read the toast
+                        setTimeout(() => window.location.reload(), 1500); 
                     }
                 });
             }
