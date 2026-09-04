@@ -1,5 +1,5 @@
 // CHANGE THIS VERSION NUMBER (e.g., to v3, v4) every time you update your index.html on GitHub
-const CACHE_NAME = 'spend-analyser-v2';
+const CACHE_NAME = 'spend-analyser-v3';
 
 const ASSETS = [
   'index.html',
