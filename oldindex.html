@@ -1,1 +1,749 @@
-a
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spend Analyser</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    
+    <!-- UI and Chart Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans pb-12">
+
+    <div id="update-toast" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg z-50 text-sm font-semibold flex items-center gap-3 transition-all">
+        <span>🔄 New version available! Updating...</span>
+    </div>
+
+    <header class="bg-indigo-600 text-white shadow-md p-4 sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <h1 class="text-xl font-bold tracking-tight">Spend Analyser</h1>
+            <div class="flex space-x-1 sm:space-x-2 overflow-x-auto">
+                <button onclick="switchTab('dashboard')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Dashboard</button>
+                <button onclick="switchTab('add-spend')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Log Spend</button>
+                <button onclick="switchTab('history')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">History</button>
+                <button onclick="switchTab('recurring')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Recurring</button>
+                <button onclick="switchTab('data-manager')" class="px-2 sm:px-3 py-1.5 rounded-md bg-indigo-800 hover:bg-indigo-900 transition font-medium text-xs sm:text-sm whitespace-nowrap">Data Manager</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 mt-4">
+        
+        <!-- DASHBOARD TAB -->
+        <section id="tab-dashboard" class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">This Month's Spend</p>
+                    <p class="text-3xl font-extrabold text-gray-900 mt-1">₹<span id="stat-current-month">0.00</span></p>
+                </div>
+                <div class="border-l border-gray-200 pl-4 md:pl-6">
+                    <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">vs Last Month</p>
+                    <p class="text-lg font-semibold mt-1" id="stat-comparison">Calculated from history...</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                <h3 class="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span> Recurring Obligations
+                </h3>
+                <div id="recurring-widget-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Sector Breakdown</h3>
+                    <div class="relative max-w-[300px] mx-auto">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Daily Velocity</h3>
+                    <div>
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ADD SPEND TAB -->
+        <section id="tab-add-spend" class="hidden max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+            <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Log Daily Transaction</h2>
+            <form id="spend-form" onsubmit="handleSpendSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Link Recurring Obligation (Optional)</label>
+                    <select id="form-spend-uid" onchange="populateFromRecurring(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        <option value="">-- No Linked Obligation --</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Date</label>
+                        <input type="date" id="form-spend-date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Time</label>
+                        <input type="time" id="form-spend-time" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Spend Amount (Rupees)</label>
+                    <input type="number" id="form-spend-amount" step="any" required min="0.01" placeholder="₹0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-lg font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Category / Sector</label>
+                        <select id="form-spend-category" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                            <option value="Electricity Bill">Electricity Bill</option>
+                            <option value="Credit Card Bill">Credit Card Bill</option>
+                            <option value="Mobile Recharge">Mobile Recharge</option>
+                            <option value="Grocery">Grocery</option>
+                            <option value="Online Purchase">Online Purchase</option>
+                            <option value="Fruits">Fruits</option>
+                            <option value="Healthcare/Medical">Healthcare/Medical</option>
+                            <option value="Dining Out">Dining Out</option>
+                            <option value="Home Maintenance">Home Maintenance</option>
+                            <option value="Loan EMI">Loan EMI</option>
+                            <option value="Savings">Savings</option>
+                            <option value="LIC Premium">LIC Premium</option>
+                            <option value="Wifi Bill">Wifi Bill</option>
+                            <option value="Petrol">Petrol</option>
+                            <option value="School Fees">School Fees</option>
+                            <option value="Lend Money">Lend Money</option>
+                            <option value="Donations">Donations</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Transaction Mode</label>
+                        <select id="form-spend-mode" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                            <option value="UPI">UPI</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Net Banking">Net Banking</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Where Spent / Vendor</label>
+                    <input type="text" id="form-spend-where" placeholder="Store name, provider, etc." class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Remarks</label>
+                    <textarea id="form-spend-remarks" rows="2" placeholder="Notes..." class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white rounded-lg p-3 font-bold hover:bg-indigo-700 shadow-md transition cursor-pointer">Save Transaction</button>
+            </form>
+        </section>
+
+        <!-- HISTORY TAB -->
+        <section id="tab-history" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">Detailed Spend Ledger</h2>
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">Sorted: Ascending</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[700px]">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-xs font-semibold uppercase text-gray-400 bg-gray-50">
+                                <th class="p-3">Date & Time</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">Amount</th>
+                                <th class="p-3">Mode</th>
+                                <th class="p-3">Vendor/Where</th>
+                                <th class="p-3">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="text-sm divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- RECURRING TAB -->
+        <section id="tab-recurring" class="hidden space-y-6">
+            <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Manage Recurring Profiles</h2>
+                <form id="recurring-form" onsubmit="handleRecurringSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Unique Identifier (UID)</label>
+                        <input type="text" id="form-rec-uid" required placeholder="e.g., LoanSBI, Wifi Bill" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Category</label>
+                            <select id="form-rec-category" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                                <option value="Electricity Bill">Electricity Bill</option>
+                                <option value="Mobile Recharge">Mobile Recharge</option>
+                                <option value="Grocery">Grocery</option>
+                                <option value="Online Purchase">Online Purchase</option>
+                                <option value="Healthcare/Medical">Healthcare/Medical</option>
+                                <option value="Fruits">Fruits</option>
+                                <option value="Loan EMI">Loan EMI</option>
+                                <option value="Wifi Bill">Wifi Bill</option>
+                                <option value="Loan to Family/ Friends">Loan to Family / Friends</option>
+                                <option value="Savings and Premium">Savings and Premium</option>
+                                <option value="Donations">Donations</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Default Base Amount (₹)</label>
+                            <input type="number" id="form-rec-amount" step="any" required min="0" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Expected Monthly Due Date</label>
+                        <input type="date" id="form-rec-duedate" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 text-white rounded-lg p-3 font-bold hover:bg-emerald-700 shadow-md transition cursor-pointer">Register Profile</button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                <h3 class="text-md font-bold text-gray-800 mb-4">Active System Configurations</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-xs font-semibold uppercase text-gray-400 bg-gray-50">
+                                <th class="p-3">UID Anchor</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">Default Base</th>
+                                <th class="p-3">Target Due</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recurring-table-body" class="text-sm divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- DATA MANAGER TAB (NEW) -->
+        <section id="tab-data-manager" class="hidden space-y-6">
+            
+            <!-- Professional PDF Export -->
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Generate Monthly Report (PDF)</h2>
+                <p class="text-sm text-gray-500">Download a professional, row-by-row breakdown of your expenditures for a specific month.</p>
+                <div class="flex flex-col sm:flex-row gap-4 items-end">
+                    <div class="w-full sm:w-1/2">
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Select Month & Year</label>
+                        <input type="month" id="export-month" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                    <button onclick="generatePDF()" class="w-full sm:w-1/2 bg-red-600 text-white rounded-lg p-2.5 font-bold hover:bg-red-700 shadow-md transition cursor-pointer">Download PDF Report</button>
+                </div>
+            </div>
+
+            <!-- Database Backup and Restore -->
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-6">
+                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Cross-Device Sync & Backup</h2>
+                
+                <div class="space-y-2">
+                    <h3 class="text-sm font-bold text-gray-800">1. Export Data (Backup)</h3>
+                    <p class="text-xs text-gray-500 mb-2">Download your complete secure database file to move it to another device.</p>
+                    <button onclick="exportJSONBackup()" class="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-indigo-700 shadow-md transition cursor-pointer">Download JSON Backup</button>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4 space-y-2">
+                    <h3 class="text-sm font-bold text-gray-800">2. Import Data (Restore)</h3>
+                    <p class="text-xs text-gray-500 mb-2">Select a previously downloaded JSON backup file to overwrite current data.</p>
+                    <div class="flex items-center gap-4">
+                        <input type="file" id="import-file" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <button onclick="importJSONBackup()" class="bg-emerald-600 text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-emerald-700 shadow-md transition cursor-pointer whitespace-nowrap">Restore Data</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        let db;
+        let pieChartInstance = null;
+        let barChartInstance = null;
+
+        // Initialize IndexedDB
+        function initDatabase() {
+            const request = indexedDB.open("SpendAnalyserDB", 1);
+            
+            request.onupgradeneeded = function(event) {
+                const database = event.target.result;
+                if (!database.objectStoreNames.contains("spends")) {
+                    database.createObjectStore("spends", { keyPath: "id", autoIncrement: true });
+                }
+                if (!database.objectStoreNames.contains("recurring")) {
+                    database.createObjectStore("recurring", { keyPath: "uid" });
+                }
+            };
+
+            request.onsuccess = function(event) {
+                db = event.target.result;
+                setDefaultFormPickers();
+                syncUIComponents();
+            };
+        }
+
+        function setDefaultFormPickers() {
+            const now = new Date();
+            const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            document.getElementById('form-spend-date').value = localDate;
+            document.getElementById('form-spend-time').value = now.toTimeString().split(' ')[0].slice(0, 5);
+            document.getElementById('form-rec-duedate').value = localDate;
+            
+            const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            document.getElementById('export-month').value = currentMonthStr;
+        }
+
+        function switchTab(tabId) {
+            ['dashboard', 'add-spend', 'history', 'recurring', 'data-manager'].forEach(tab => {
+                document.getElementById(`tab-${tab}`).classList.add('hidden');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            if(tabId === 'dashboard' || tabId === 'history') syncUIComponents();
+        }
+
+        // --- CORE DB WRITE OPERATIONS ---
+        function handleSpendSubmit(event) {
+            event.preventDefault();
+            const transaction = db.transaction(["spends", "recurring"], "readwrite");
+            const spendStore = transaction.objectStore("spends");
+            const recStore = transaction.objectStore("recurring");
+
+            const uid = document.getElementById('form-spend-uid').value;
+            const spendDate = document.getElementById('form-spend-date').value;
+
+            const record = {
+                uid: uid || null,
+                date: spendDate,
+                time: document.getElementById('form-spend-time').value,
+                amount: parseFloat(document.getElementById('form-spend-amount').value),
+                category: document.getElementById('form-spend-category').value,
+                mode: document.getElementById('form-spend-mode').value,
+                where: document.getElementById('form-spend-where').value,
+                remarks: document.getElementById('form-spend-remarks').value
+            };
+
+            spendStore.add(record);
+
+            if (uid) {
+                recStore.get(uid).onsuccess = function(e) {
+                    const profile = e.target.result;
+                    if(profile) {
+                        profile.lastPaidDate = spendDate;
+                        recStore.put(profile);
+                    }
+                };
+            }
+
+            transaction.oncomplete = function() {
+                document.getElementById('spend-form').reset();
+                setDefaultFormPickers();
+                switchTab('dashboard');
+            };
+        }
+
+        function handleRecurringSubmit(event) {
+            event.preventDefault();
+            const transaction = db.transaction(["recurring"], "readwrite");
+            const store = transaction.objectStore("recurring");
+
+            const profile = {
+                uid: document.getElementById('form-rec-uid').value.trim(),
+                category: document.getElementById('form-rec-category').value,
+                amount: parseFloat(document.getElementById('form-rec-amount').value),
+                dueDate: document.getElementById('form-rec-duedate').value,
+                lastPaidDate: null
+            };
+
+            store.put(profile);
+
+            transaction.oncomplete = function() {
+                document.getElementById('recurring-form').reset();
+                setDefaultFormPickers();
+                syncUIComponents();
+            };
+        }
+
+        function deleteRecurring(uid) {
+            if(confirm(`Are you sure you want to delete the recurring profile for ${uid}?`)) {
+                const transaction = db.transaction(["recurring"], "readwrite");
+                transaction.objectStore("recurring").delete(uid);
+                transaction.oncomplete = function() {
+                    syncUIComponents();
+                };
+            }
+        }
+
+        function populateFromRecurring(uid) {
+            if(!uid) return;
+            const transaction = db.transaction(["recurring"], "readonly");
+            transaction.objectStore("recurring").get(uid).onsuccess = function(e) {
+                const profile = e.target.result;
+                if(profile) {
+                    document.getElementById('form-spend-amount').value = profile.amount;
+                    document.getElementById('form-spend-category').value = profile.category;
+                }
+            };
+        }
+
+        // --- SYNC & RENDER ---
+        function syncUIComponents() {
+            const transaction = db.transaction(["spends", "recurring"], "readonly");
+            const spendStore = transaction.objectStore("spends");
+            const recStore = transaction.objectStore("recurring");
+
+            let allSpends = [];
+            let allRecurring = [];
+
+            spendStore.getAll().onsuccess = function(e) { 
+                allSpends = e.target.result; 
+                renderHistoryTable(allSpends);
+            };
+            recStore.getAll().onsuccess = function(e) { 
+                allRecurring = e.target.result; 
+                renderDashboardMetrics(allSpends, allRecurring);
+            };
+        }
+
+        function renderHistoryTable(spends) {
+            const tableBody = document.getElementById('history-table-body');
+            tableBody.innerHTML = '';
+
+            spends.sort((a, b) => {
+                const dateA = new Date(`${a.date}T${a.time}`);
+                const dateB = new Date(`${b.date}T${b.time}`);
+                return dateA - dateB;
+            });
+
+            if (spends.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No transactions recorded yet.</td></tr>';
+                return;
+            }
+
+            spends.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 transition";
+                row.innerHTML = `
+                    <td class="p-3 whitespace-nowrap text-gray-600 font-medium">
+                        ${item.date} <br><span class="text-xs text-gray-400">${item.time}</span>
+                    </td>
+                    <td class="p-3 text-gray-800">
+                        ${item.category} ${item.uid ? `<br><span class="text-[10px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded">🔗 ${item.uid}</span>` : ''}
+                    </td>
+                    <td class="p-3 font-bold text-gray-900">₹${item.amount.toFixed(2)}</td>
+                    <td class="p-3 text-gray-600 text-xs">${item.mode}</td>
+                    <td class="p-3 text-gray-700">${item.where || '-'}</td>
+                    <td class="p-3 text-gray-500 text-xs truncate max-w-[150px]" title="${item.remarks}">${item.remarks || '-'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function renderDashboardMetrics(spends, recurring) {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); 
+
+            let currentMonthTotal = 0;
+            let lastMonthTotal = 0;
+            const categoryTotals = {};
+            const dailyTotals = {};
+
+            spends.forEach(item => {
+                const itemDate = new Date(item.date);
+                const itemYear = itemDate.getFullYear();
+                const itemMonth = itemDate.getMonth();
+
+                if (itemYear === currentYear && itemMonth === currentMonth) {
+                    currentMonthTotal += item.amount;
+                    categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.amount;
+                    const dayLabel = itemDate.getDate();
+                    dailyTotals[dayLabel] = (dailyTotals[dayLabel] || 0) + item.amount;
+                } else if (itemYear === currentYear && itemMonth === (currentMonth - 1)) {
+                    lastMonthTotal += item.amount;
+                }
+            });
+
+            document.getElementById('stat-current-month').textContent = currentMonthTotal.toFixed(2);
+            
+            const compEl = document.getElementById('stat-comparison');
+            if (lastMonthTotal > 0) {
+                const percentChange = ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+                if(percentChange > 0) {
+                    compEl.className = "text-sm font-semibold mt-1 text-red-600";
+                    compEl.textContent = `+${percentChange.toFixed(1)}% higher than last month (₹${lastMonthTotal.toFixed(2)})`;
+                } else {
+                    compEl.className = "text-sm font-semibold mt-1 text-emerald-600";
+                    compEl.textContent = `${percentChange.toFixed(1)}% lower than last month (₹${lastMonthTotal.toFixed(2)})`;
+                }
+            } else {
+                compEl.className = "text-xs font-medium mt-1 text-gray-400";
+                compEl.textContent = "Insufficient baseline historical data.";
+            }
+
+            const spendUidDropdown = document.getElementById('form-spend-uid');
+            spendUidDropdown.innerHTML = '<option value="">-- No Linked Obligation --</option>';
+            recurring.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.uid;
+                opt.textContent = item.uid;
+                spendUidDropdown.appendChild(opt);
+            });
+
+            const widgetContainer = document.getElementById('recurring-widget-list');
+            widgetContainer.innerHTML = '';
+            const tableBody = document.getElementById('recurring-table-body');
+            tableBody.innerHTML = '';
+
+            recurring.forEach(item => {
+                let isPaidThisMonth = false;
+                if (item.lastPaidDate) {
+                    const lDate = new Date(item.lastPaidDate);
+                    if(lDate.getFullYear() === currentYear && lDate.getMonth() === currentMonth) {
+                        isPaidThisMonth = true;
+                    }
+                }
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl border flex justify-between items-center ${isPaidThisMonth ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`;
+                card.innerHTML = `
+                    <div>
+                        <p class="font-bold text-gray-800 text-sm">${item.uid}</p>
+                        <p class="text-xs text-gray-500">Expected Base: ₹${item.amount.toFixed(2)}</p>
+                    </div>
+                    ${isPaidThisMonth 
+                        ? '<span class="bg-emerald-600 text-white rounded-full px-2 py-1 text-[10px] font-bold">✓ Paid</span>' 
+                        : `<button onclick="triggerQuickPay('${item.uid}')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium shadow-xs transition cursor-pointer">Pay</button>`
+                    }
+                `;
+                widgetContainer.appendChild(card);
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 transition";
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-gray-700">${item.uid}</td>
+                    <td class="p-3 text-gray-600">${item.category}</td>
+                    <td class="p-3 font-medium text-gray-900">₹${item.amount.toFixed(2)}</td>
+                    <td class="p-3 text-gray-500">${item.dueDate}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="deleteRecurring('${item.uid}')" class="text-rose-600 hover:text-rose-900 font-medium text-xs transition cursor-pointer">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            generateCharts(categoryTotals, dailyTotals);
+        }
+
+        function triggerQuickPay(uid) {
+            switchTab('add-spend');
+            document.getElementById('form-spend-uid').value = uid;
+            populateFromRecurring(uid);
+        }
+
+        function generateCharts(categoryData, dailyData) {
+            if (pieChartInstance) pieChartInstance.destroy();
+            if (barChartInstance) barChartInstance.destroy();
+
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            const pieLabels = Object.keys(categoryData);
+            const pieValues = Object.values(categoryData);
+
+            pieChartInstance = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: pieLabels,
+                    datasets: [{
+                        data: pieValues,
+                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b', '#14b8a6', '#f43f5e', '#84cc16']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            const sortedDays = Object.keys(dailyData).sort((a, b) => a - b);
+            const barValues = sortedDays.map(day => dailyData[day]);
+
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: sortedDays.map(d => `Day ${d}`),
+                    datasets: [{
+                        label: 'Spend Level (₹)',
+                        data: barValues,
+                        backgroundColor: '#4f46e5'
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // --- NEW: EXPORT TO PDF ---
+        function generatePDF() {
+            const monthInput = document.getElementById('export-month').value;
+            if(!monthInput) return alert("Please select a month");
+            
+            const [year, month] = monthInput.split('-');
+
+            const transaction = db.transaction(["spends"], "readonly");
+            const spendStore = transaction.objectStore("spends");
+            
+            spendStore.getAll().onsuccess = function(e) { 
+                const allSpends = e.target.result;
+                
+                // Filter by chosen month
+                const filteredSpends = allSpends.filter(item => {
+                    const itemDate = new Date(item.date);
+                    return String(itemDate.getFullYear()) === year && String(itemDate.getMonth() + 1).padStart(2, '0') === month;
+                });
+
+                // Sort Ascending
+                filteredSpends.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // PDF Header
+                doc.setFontSize(18);
+                doc.setTextColor(79, 70, 229); // Indigo
+                doc.text("Spend Analyser - Monthly Report", 14, 22);
+                doc.setFontSize(11);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Billing Period: ${month}/${year}`, 14, 30);
+
+                let totalAmount = 0;
+                const tableData = filteredSpends.map((item, index) => {
+                    totalAmount += item.amount;
+                    return [
+                        index + 1,
+                        `${item.date} ${item.time}`,
+                        item.category,
+                        item.mode,
+                        item.where || '-',
+                        `Rs. ${item.amount.toFixed(2)}`
+                    ];
+                });
+
+                if(tableData.length === 0) {
+                    alert("No data found for this month to generate PDF.");
+                    return;
+                }
+
+                // AutoTable Plugin
+                doc.autoTable({
+                    startY: 35,
+                    head: [['#', 'Date & Time', 'Category', 'Mode', 'Vendor', 'Amount']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [79, 70, 229] },
+                    foot: [['', '', '', '', 'TOTAL MONTHLY SPEND:', `Rs. ${totalAmount.toFixed(2)}`]],
+                    footStyles: { fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold' }
+                });
+
+                doc.save(`SpendReport_${year}_${month}.pdf`);
+            };
+        }
+
+        // --- NEW: EXPORT & IMPORT JSON (BACKUP/RESTORE) ---
+        function exportJSONBackup() {
+            const transaction = db.transaction(["spends", "recurring"], "readonly");
+            const spendStore = transaction.objectStore("spends");
+            const recStore = transaction.objectStore("recurring");
+
+            let backupData = { spends: [], recurring: [] };
+
+            spendStore.getAll().onsuccess = function(e1) {
+                backupData.spends = e1.target.result;
+                recStore.getAll().onsuccess = function(e2) {
+                    backupData.recurring = e2.target.result;
+
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    downloadAnchorNode.setAttribute("download", `SpendBackup_${dateStr}.json`);
+                    document.body.appendChild(downloadAnchorNode); 
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                };
+            };
+        }
+
+        function importJSONBackup() {
+            const fileInput = document.getElementById('import-file');
+            if(fileInput.files.length === 0) return alert("Please select a JSON backup file first.");
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(!data.spends || !data.recurring) throw new Error("Invalid Format");
+
+                    if(confirm("WARNING: This will erase all current data on this device and replace it with the backup. Proceed?")) {
+                        const transaction = db.transaction(["spends", "recurring"], "readwrite");
+                        const spendStore = transaction.objectStore("spends");
+                        const recStore = transaction.objectStore("recurring");
+
+                        // Clear current tables
+                        spendStore.clear();
+                        recStore.clear();
+
+                        // Add new records
+                        data.spends.forEach(item => spendStore.add(item));
+                        data.recurring.forEach(item => recStore.add(item));
+
+                        transaction.oncomplete = function() {
+                            alert("Data Restored Successfully!");
+                            fileInput.value = ""; // Reset input
+                            syncUIComponents();
+                        };
+                    }
+                } catch(error) {
+                    alert("Error parsing file. Please ensure it is a valid Spend Analyser backup.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // PWA Registration
+        window.onload = function() {
+            initDatabase();
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                document.getElementById('update-toast').classList.remove('hidden');
+                                newWorker.postMessage({ action: 'skipWaiting' });
+                            }
+                        });
+                    });
+                });
+
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        setTimeout(() => window.location.reload(), 1500); 
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>
