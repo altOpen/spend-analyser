@@ -7,242 +7,277 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
     
+    <!-- UI and Chart Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- PDF Generation Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
+    <!-- Firebase App, Auth, and Database SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans pb-12">
 
+    <!-- Update Toast Notification -->
     <div id="update-toast" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg z-50 text-sm font-semibold flex items-center gap-3 transition-all">
         <span>🔄 New version available! Updating...</span>
     </div>
 
-    <header class="bg-indigo-600 text-white shadow-md p-4 sticky top-0 z-40">
-        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
-            <div class="flex items-center gap-2">
-                <h1 class="text-xl font-bold tracking-tight">Spend Analyser</h1>
-                <span id="cloud-status" class="text-[10px] bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full">Cloud Active</span>
+    <!-- AUTHENTICATION SCREEN (Shown when logged out) -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center space-y-6">
+            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
+                ₹
             </div>
-            <div class="flex space-x-1 sm:space-x-2 overflow-x-auto">
-                <button onclick="switchTab('dashboard')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Dashboard</button>
-                <button onclick="switchTab('add-spend')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Log Spend</button>
-                <button onclick="switchTab('history')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">History</button>
-                <button onclick="switchTab('recurring')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Recurring</button>
-                <button onclick="switchTab('data-manager')" class="px-2 sm:px-3 py-1.5 rounded-md bg-indigo-800 hover:bg-indigo-900 transition font-medium text-xs sm:text-sm whitespace-nowrap">Reports</button>
+            <div>
+                <h2 class="text-2xl font-extrabold text-gray-900">Spend Analyser</h2>
+                <p class="text-sm text-gray-500 mt-1">Sign in to securely access your personal dashboard.</p>
             </div>
+            <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-xs transition cursor-pointer">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                Sign in with Google
+            </button>
+            <p class="text-[11px] text-gray-400">Your spends are completely private and tied to your account.</p>
         </div>
-    </header>
+    </div>
 
-    <main class="max-w-4xl mx-auto p-4 mt-4">
-        
-        <section id="tab-dashboard" class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">This Month's Spend</p>
-                    <p class="text-3xl font-extrabold text-gray-900 mt-1">₹<span id="stat-current-month">0.00</span></p>
+    <!-- MAIN APP WRAPPER (Shown only when authenticated) -->
+    <div id="app-container" class="hidden">
+        <header class="bg-indigo-600 text-white shadow-md p-4 sticky top-0 z-40">
+            <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center gap-2">
+                    <h1 class="text-xl font-bold tracking-tight">Spend Analyser</h1>
+                    <span id="cloud-status" class="text-[10px] bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full">Secure</span>
                 </div>
-                <div class="border-l border-gray-200 pl-4 md:pl-6">
-                    <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">vs Last Month</p>
-                    <p class="text-lg font-semibold mt-1" id="stat-comparison">Calculating...</p>
+                <div class="flex items-center space-x-1 sm:space-x-2 overflow-x-auto">
+                    <button onclick="switchTab('dashboard')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Dashboard</button>
+                    <button onclick="switchTab('add-spend')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Log Spend</button>
+                    <button onclick="switchTab('history')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">History</button>
+                    <button onclick="switchTab('recurring')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Recurring</button>
+                    <button onclick="switchTab('data-manager')" class="px-2 sm:px-3 py-1.5 rounded-md bg-indigo-800 hover:bg-indigo-900 transition font-medium text-xs sm:text-sm whitespace-nowrap">Reports</button>
+                    <button onclick="handleSignOut()" class="px-2 sm:px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 transition font-medium text-xs sm:text-sm whitespace-nowrap ml-2">Logout</button>
                 </div>
             </div>
+        </header>
 
-            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
-                <h3 class="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span> Recurring Obligations
-                </h3>
-                <div id="recurring-widget-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
-            </div>
+        <main class="max-w-4xl mx-auto p-4 mt-4">
+            <!-- DASHBOARD TAB -->
+            <section id="tab-dashboard" class="space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">This Month's Spend</p>
+                        <p class="text-3xl font-extrabold text-gray-900 mt-1">₹<span id="stat-current-month">0.00</span></p>
+                    </div>
+                    <div class="border-l border-gray-200 pl-4 md:pl-6">
+                        <p class="text-sm text-gray-500 font-medium uppercase tracking-wider">vs Last Month</p>
+                        <p class="text-lg font-semibold mt-1" id="stat-comparison">Calculating...</p>
+                    </div>
+                </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Sector Breakdown</h3>
-                    <div class="relative max-w-[300px] mx-auto">
-                        <canvas id="pieChart"></canvas>
-                    </div>
+                    <h3 class="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-indigo-600"></span> Recurring Obligations
+                    </h3>
+                    <div id="recurring-widget-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Daily Velocity</h3>
-                    <div>
-                        <canvas id="barChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <section id="tab-add-spend" class="hidden max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
-            <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Log Daily Transaction</h2>
-            <form id="spend-form" onsubmit="handleSpendSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Link Recurring Obligation (Optional)</label>
-                    <select id="form-spend-uid" onchange="populateFromRecurring(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
-                        <option value="">-- No Linked Obligation --</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Date</label>
-                        <input type="date" id="form-spend-date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Sector Breakdown</h3>
+                        <div class="relative max-w-[300px] mx-auto">
+                            <canvas id="pieChart"></canvas>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Time</label>
-                        <input type="time" id="form-spend-time" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Daily Velocity</h3>
+                        <div>
+                            <canvas id="barChart"></canvas>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Spend Amount (Rupees)</label>
-                    <input type="number" id="form-spend-amount" step="any" required min="0.01" placeholder="₹0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-lg font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
+            </section>
+
+            <!-- ADD SPEND TAB -->
+            <section id="tab-add-spend" class="hidden max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Log Daily Transaction</h2>
+                <form id="spend-form" onsubmit="handleSpendSubmit(event)" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Category / Sector</label>
-                        <select id="form-spend-category" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
-                            <option value="Electricity Bill">Electricity Bill</option>
-                            <option value="Credit Card Bill">Credit Card Bill</option>
-                            <option value="Mobile Recharge">Mobile Recharge</option>
-                            <option value="Grocery">Grocery</option>
-                            <option value="Online Purchase">Online Purchase</option>
-                            <option value="Fruits">Fruits</option>
-                            <option value="Healthcare/Medical">Healthcare/Medical</option>
-                            <option value="Dining Out">Dining Out</option>
-                            <option value="Home Maintenance">Home Maintenance</option>
-                            <option value="Loan EMI">Loan EMI</option>
-                            <option value="Savings">Savings</option>
-                            <option value="LIC Premium">LIC Premium</option>
-                            <option value="Wifi Bill">Wifi Bill</option>
-                            <option value="Petrol">Petrol</option>
-                            <option value="School Fees">School Fees</option>
-                            <option value="Lend Money">Lend Money</option>
-                            <option value="Donations">Donations</option>
-                            <option value="Others">Others</option>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Link Recurring Obligation (Optional)</label>
+                        <select id="form-spend-uid" onchange="populateFromRecurring(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                            <option value="">-- No Linked Obligation --</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Transaction Mode</label>
-                        <select id="form-spend-mode" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
-                            <option value="UPI">UPI</option>
-                            <option value="Cash">Cash</option>
-                            <option value="Credit Card">Credit Card</option>
-                            <option value="Net Banking">Net Banking</option>
-                            <option value="Others">Others</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Where Spent / Vendor</label>
-                    <input type="text" id="form-spend-where" placeholder="Store name, provider, etc." class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Remarks</label>
-                    <textarea id="form-spend-remarks" rows="2" placeholder="Notes..." class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"></textarea>
-                </div>
-                <button type="submit" id="btn-save-spend" class="w-full bg-indigo-600 text-white rounded-lg p-3 font-bold hover:bg-indigo-700 shadow-md transition cursor-pointer">Save Transaction to Cloud</button>
-            </form>
-        </section>
-
-        <section id="tab-history" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-gray-900">Detailed Spend Ledger</h2>
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">Sorted: Ascending</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[700px]">
-                        <thead>
-                            <tr class="border-b border-gray-200 text-xs font-semibold uppercase text-gray-400 bg-gray-50">
-                                <th class="p-3">Date & Time</th>
-                                <th class="p-3">Category</th>
-                                <th class="p-3">Amount</th>
-                                <th class="p-3">Mode</th>
-                                <th class="p-3">Vendor/Where</th>
-                                <th class="p-3">Remarks</th>
-                                <th class="p-3 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body" class="text-sm divide-y divide-gray-100"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="tab-recurring" class="hidden space-y-6">
-            <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
-                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Manage Recurring Profiles</h2>
-                <form id="recurring-form" onsubmit="handleRecurringSubmit(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Unique Identifier (UID)</label>
-                        <input type="text" id="form-rec-uid" required placeholder="e.g., LoanSBI, Wifi Bill" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Category</label>
-                            <select id="form-rec-category" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Date</label>
+                            <input type="date" id="form-spend-date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Time</label>
+                            <input type="time" id="form-spend-time" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Spend Amount (Rupees)</label>
+                        <input type="number" id="form-spend-amount" step="any" required min="0.01" placeholder="₹0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-lg font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Category / Sector</label>
+                            <select id="form-spend-category" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
                                 <option value="Electricity Bill">Electricity Bill</option>
+                                <option value="Credit Card Bill">Credit Card Bill</option>
                                 <option value="Mobile Recharge">Mobile Recharge</option>
                                 <option value="Grocery">Grocery</option>
                                 <option value="Online Purchase">Online Purchase</option>
-                                <option value="Healthcare/Medical">Healthcare/Medical</option>
                                 <option value="Fruits">Fruits</option>
+                                <option value="Healthcare/Medical">Healthcare/Medical</option>
+                                <option value="Dining Out">Dining Out</option>
+                                <option value="Home Maintenance">Home Maintenance</option>
                                 <option value="Loan EMI">Loan EMI</option>
+                                <option value="Savings">Savings</option>
+                                <option value="LIC Premium">LIC Premium</option>
                                 <option value="Wifi Bill">Wifi Bill</option>
-                                <option value="Loan to Family/ Friends">Loan to Family / Friends</option>
-                                <option value="Savings and Premium">Savings and Premium</option>
+                                <option value="Petrol">Petrol</option>
+                                <option value="School Fees">School Fees</option>
+                                <option value="Lend Money">Lend Money</option>
                                 <option value="Donations">Donations</option>
                                 <option value="Others">Others</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Default Base Amount (₹)</label>
-                            <input type="number" id="form-rec-amount" step="any" required min="0" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Transaction Mode</label>
+                            <select id="form-spend-mode" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                                <option value="UPI">UPI</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Net Banking">Net Banking</option>
+                                <option value="Others">Others</option>
+                            </select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Expected Monthly Due Date</label>
-                        <input type="date" id="form-rec-duedate" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Where Spent / Vendor</label>
+                        <input type="text" id="form-spend-where" placeholder="Store name, provider, etc." class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
                     </div>
-                    <button type="submit" class="w-full bg-emerald-600 text-white rounded-lg p-3 font-bold hover:bg-emerald-700 shadow-md transition cursor-pointer">Register Profile to Cloud</button>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Remarks</label>
+                        <textarea id="form-spend-remarks" rows="2" placeholder="Notes..." class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"></textarea>
+                    </div>
+                    <button type="submit" id="btn-save-spend" class="w-full bg-indigo-600 text-white rounded-lg p-3 font-bold hover:bg-indigo-700 shadow-md transition cursor-pointer">Save Transaction to Cloud</button>
                 </form>
-            </div>
+            </section>
 
-            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
-                <h3 class="text-md font-bold text-gray-800 mb-4">Active System Configurations</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-gray-200 text-xs font-semibold uppercase text-gray-400 bg-gray-50">
-                                <th class="p-3">UID Anchor</th>
-                                <th class="p-3">Category</th>
-                                <th class="p-3">Default Base</th>
-                                <th class="p-3">Target Due</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recurring-table-body" class="text-sm divide-y divide-gray-100"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="tab-data-manager" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
-                <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Generate Monthly Report (PDF)</h2>
-                <p class="text-sm text-gray-500">Download a formatted PDF breakdown of your expenditures for any billing cycle directly from the cloud.</p>
-                <div class="flex flex-col sm:flex-row gap-4 items-end">
-                    <div class="w-full sm:w-1/2">
-                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Select Month & Year</label>
-                        <input type="month" id="export-month" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+            <!-- HISTORY TAB -->
+            <section id="tab-history" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-900">Detailed Spend Ledger</h2>
+                        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">Sorted: Ascending</span>
                     </div>
-                    <button onclick="generatePDF()" class="w-full sm:w-1/2 bg-red-600 text-white rounded-lg p-2.5 font-bold hover:bg-red-700 shadow-md transition cursor-pointer">Download PDF Report</button>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[700px]">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-xs font-semibold uppercase text-gray-400 bg-gray-50">
+                                    <th class="p-3">Date & Time</th>
+                                    <th class="p-3">Category</th>
+                                    <th class="p-3">Amount</th>
+                                    <th class="p-3">Mode</th>
+                                    <th class="p-3">Vendor/Where</th>
+                                    <th class="p-3">Remarks</th>
+                                    <th class="p-3 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="text-sm divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-    </main>
+            <!-- RECURRING TAB -->
+            <section id="tab-recurring" class="hidden space-y-6">
+                <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+                    <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Manage Recurring Profiles</h2>
+                    <form id="recurring-form" onsubmit="handleRecurringSubmit(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Unique Identifier (UID)</label>
+                            <input type="text" id="form-rec-uid" required placeholder="e.g., LoanSBI, Wifi Bill" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Category</label>
+                                <select id="form-rec-category" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                                    <option value="Electricity Bill">Electricity Bill</option>
+                                    <option value="Mobile Recharge">Mobile Recharge</option>
+                                    <option value="Grocery">Grocery</option>
+                                    <option value="Online Purchase">Online Purchase</option>
+                                    <option value="Healthcare/Medical">Healthcare/Medical</option>
+                                    <option value="Fruits">Fruits</option>
+                                    <option value="Loan EMI">Loan EMI</option>
+                                    <option value="Wifi Bill">Wifi Bill</option>
+                                    <option value="Loan to Family/ Friends">Loan to Family / Friends</option>
+                                    <option value="Savings and Premium">Savings and Premium</option>
+                                    <option value="Donations">Donations</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Default Base Amount (₹)</label>
+                                <input type="number" id="form-rec-amount" step="any" required min="0" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Expected Monthly Due Date</label>
+                            <input type="date" id="form-rec-duedate" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 text-white rounded-lg p-3 font-bold hover:bg-emerald-700 shadow-md transition cursor-pointer">Register Profile to Cloud</button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100">
+                    <h3 class="text-md font-bold text-gray-800 mb-4">Active System Configurations</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-xs font-semibold uppercase text-gray-400 bg-gray-50">
+                                    <th class="p-3">UID Anchor</th>
+                                    <th class="p-3">Category</th>
+                                    <th class="p-3">Default Base</th>
+                                    <th class="p-3">Target Due</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recurring-table-body" class="text-sm divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REPORTS & DATA TAB -->
+            <section id="tab-data-manager" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 space-y-4">
+                    <h2 class="text-lg font-bold text-gray-900 border-b pb-2">Generate Monthly Report (PDF)</h2>
+                    <p class="text-sm text-gray-500">Download a formatted PDF breakdown of your expenditures for any billing cycle directly from the cloud.</p>
+                    <div class="flex flex-col sm:flex-row gap-4 items-end">
+                        <div class="w-full sm:w-1/2">
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Select Month & Year</label>
+                            <input type="month" id="export-month" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                        </div>
+                        <button onclick="generatePDF()" class="w-full sm:w-1/2 bg-red-600 text-white rounded-lg p-2.5 font-bold hover:bg-red-700 shadow-md transition cursor-pointer">Download PDF Report</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script>
         // --- 1. FIREBASE INITIALIZATION ---
@@ -257,19 +292,56 @@
         };
 
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const database = firebase.database();
-        const spendsRef = database.ref('spends');
-        const recurringRef = database.ref('recurring');
 
-        // State caches
+        let currentUser = null;
+        let spendsRef = null;
+        let recurringRef = null;
+
         let currentSpends = [];
         let currentRecurring = [];
         let pieChartInstance = null;
         let barChartInstance = null;
 
-        // --- 2. REALTIME LISTENERS (AUTO-SYNC) ---
+        // --- 2. AUTHENTICATION LIFECYCLE ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                // Scope queries directly under this user's UID
+                spendsRef = database.ref(`users/${user.uid}/spends`);
+                recurringRef = database.ref(`users/${user.uid}/recurring`);
+
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+
+                setDefaultFormPickers();
+                initFirebaseListeners();
+            } else {
+                currentUser = null;
+                if (spendsRef) spendsRef.off();
+                if (recurringRef) recurringRef.off();
+
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('auth-screen').classList.remove('hidden');
+            }
+        });
+
+        function handleGoogleSignIn() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(err => {
+                alert("Sign-in Error: " + err.message);
+            });
+        }
+
+        function handleSignOut() {
+            if (confirm("Are you sure you want to log out?")) {
+                auth.signOut();
+            }
+        }
+
+        // --- 3. REALTIME LISTENERS (USER SCOPED) ---
         function initFirebaseListeners() {
-            // Listen for any changes in Spends
             spendsRef.on('value', snapshot => {
                 const data = snapshot.val();
                 currentSpends = [];
@@ -282,7 +354,6 @@
                 renderDashboardMetrics(currentSpends, currentRecurring);
             });
 
-            // Listen for any changes in Recurring
             recurringRef.on('value', snapshot => {
                 const data = snapshot.val();
                 currentRecurring = [];
@@ -296,7 +367,7 @@
             });
         }
 
-        // --- 3. UI STATE ENGINE ---
+        // --- 4. UI STATE ENGINE ---
         function setDefaultFormPickers() {
             const now = new Date();
             const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -315,9 +386,11 @@
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
         }
 
-        // --- 4. DATA WRITE OPERATIONS ---
+        // --- 5. DATA WRITE OPERATIONS ---
         function handleSpendSubmit(event) {
             event.preventDefault();
+            if (!spendsRef) return;
+
             const uid = document.getElementById('form-spend-uid').value;
             const spendDate = document.getElementById('form-spend-date').value;
 
@@ -332,10 +405,8 @@
                 remarks: document.getElementById('form-spend-remarks').value
             };
 
-            // Write to Cloud Spends
             spendsRef.push(newSpend).then(() => {
-                // If linked, update recurring profile status in cloud
-                if (uid) {
+                if (uid && recurringRef) {
                     recurringRef.child(uid).update({ lastPaidDate: spendDate });
                 }
                 document.getElementById('spend-form').reset();
@@ -346,8 +417,9 @@
 
         function handleRecurringSubmit(event) {
             event.preventDefault();
+            if (!recurringRef) return;
+
             const rawUid = document.getElementById('form-rec-uid').value.trim();
-            // Sanitize UID for Firebase paths
             const uid = rawUid.replace(/[.#$[\]]/g, "_");
 
             const newProfile = {
@@ -390,7 +462,7 @@
             populateFromRecurring(uid);
         }
 
-        // --- 5. DATA RENDER PIPELINE ---
+        // --- 6. DATA RENDER PIPELINE ---
         function updateRecurringDropdown(recurring) {
             const spendUidDropdown = document.getElementById('form-spend-uid');
             spendUidDropdown.innerHTML = '<option value="">-- No Linked Obligation --</option>';
@@ -413,7 +485,7 @@
             });
 
             if (sortedSpends.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-500">No transactions recorded in the cloud.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-500">No transactions recorded in your cloud.</td></tr>';
                 return;
             }
 
@@ -478,7 +550,7 @@
                 }
             } else {
                 compEl.className = "text-xs font-medium mt-1 text-gray-400";
-                compEl.textContent = "Insufficient baseline historical data.";
+                compEl.textContent = "No baseline historical data.";
             }
 
             // Recurring Widgets & Table
@@ -565,7 +637,7 @@
             });
         }
 
-        // --- 6. PDF GENERATOR ---
+        // --- 7. PDF GENERATOR ---
         function generatePDF() {
             const monthInput = document.getElementById('export-month').value;
             if (!monthInput) return alert("Please select a month");
@@ -580,7 +652,7 @@
             filteredSpends.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
 
             if (filteredSpends.length === 0) {
-                alert("No data found for this month in the cloud.");
+                alert("No data found for this month in your cloud.");
                 return;
             }
 
@@ -620,11 +692,8 @@
             doc.save(`SpendReport_${year}_${month}.pdf`);
         }
 
-        // --- 7. APP BOOT & PWA ---
+        // --- 8. APP BOOT & PWA ---
         window.onload = function() {
-            setDefaultFormPickers();
-            initFirebaseListeners();
-
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').then(reg => {
                     reg.addEventListener('updatefound', () => {
