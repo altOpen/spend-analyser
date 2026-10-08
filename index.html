@@ -15,9 +15,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- Firebase App, Auth, and Database SDKs -->
+    <!-- Firebase App and Realtime Database SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans pb-12">
@@ -27,26 +26,30 @@
         <span>🔄 New version available! Updating...</span>
     </div>
 
-    <!-- AUTHENTICATION SCREEN -->
+    <!-- AUTHENTICATION SCREEN (PIN LOCK) -->
     <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center space-y-6">
+        <div class="max-w-sm w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 space-y-6">
             <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
                 ₹
             </div>
-            <div>
+            <div class="text-center">
                 <h2 class="text-2xl font-extrabold text-gray-900">Spend Analyser</h2>
-                <p class="text-sm text-gray-500 mt-1">Sign in to securely access your personal dashboard.</p>
+                <p class="text-xs text-gray-500 mt-1">Enter your User ID & PIN to access your personal workspace.</p>
             </div>
-            <button id="btn-signin" onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-xs transition cursor-pointer">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                <span id="signin-text">Sign in with Google</span>
-            </button>
-            <p id="auth-status-message" class="text-xs text-gray-400">Your spends are completely private and tied to your account.</p>
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">User Identifier</label>
+                    <input type="text" id="auth-username" required placeholder="e.g. Manash, Rahul" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Secret PIN (4+ digits)</label>
+                    <input type="password" id="auth-pin" required pattern="[0-9]{4,8}" placeholder="••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-center tracking-widest text-lg font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-hidden">
+                </div>
+                <button type="submit" id="btn-auth" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition cursor-pointer">
+                    Access My Spends
+                </button>
+            </form>
+            <p class="text-[11px] text-gray-400 text-center">New users: Choose a User ID and PIN to automatically create your secure account.</p>
         </div>
     </div>
 
@@ -56,7 +59,7 @@
             <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
                 <div class="flex items-center gap-2">
                     <h1 class="text-xl font-bold tracking-tight">Spend Analyser</h1>
-                    <span id="cloud-status" class="text-[10px] bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full">Secure</span>
+                    <span id="user-badge" class="text-[10px] bg-indigo-800 text-white font-semibold px-2 py-0.5 rounded-full">User</span>
                 </div>
                 <div class="flex items-center space-x-1 sm:space-x-2 overflow-x-auto">
                     <button onclick="switchTab('dashboard')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Dashboard</button>
@@ -64,7 +67,7 @@
                     <button onclick="switchTab('history')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">History</button>
                     <button onclick="switchTab('recurring')" class="px-2 sm:px-3 py-1.5 rounded-md hover:bg-indigo-700 transition font-medium text-xs sm:text-sm whitespace-nowrap">Recurring</button>
                     <button onclick="switchTab('data-manager')" class="px-2 sm:px-3 py-1.5 rounded-md bg-indigo-800 hover:bg-indigo-900 transition font-medium text-xs sm:text-sm whitespace-nowrap">Reports</button>
-                    <button onclick="handleSignOut()" class="px-2 sm:px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 transition font-medium text-xs sm:text-sm whitespace-nowrap ml-2">Logout</button>
+                    <button onclick="handleLogout()" class="px-2 sm:px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 transition font-medium text-xs sm:text-sm whitespace-nowrap ml-2">Logout</button>
                 </div>
             </div>
         </header>
@@ -292,10 +295,9 @@
         };
 
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const database = firebase.database();
 
-        let currentUser = null;
+        let currentUserId = null;
         let spendsRef = null;
         let recurringRef = null;
 
@@ -304,59 +306,75 @@
         let pieChartInstance = null;
         let barChartInstance = null;
 
-        // --- 2. AUTHENTICATION LIFECYCLE (MOBILE-OPTIMIZED REDIRECT) ---
-        auth.getRedirectResult().catch(err => {
-            if (err && err.code) {
-                alert("Sign-in Redirect Error (" + err.code + "): " + err.message);
-            }
-        });
+        // --- 2. MULTI-TENANT AUTH (ID & PIN) ---
+        function cleanUsername(name) {
+            return name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+        }
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUser = user;
-                spendsRef = database.ref(`users/${user.uid}/spends`);
-                recurringRef = database.ref(`users/${user.uid}/recurring`);
+        function handleAuthSubmit(event) {
+            event.preventDefault();
+            const rawUser = document.getElementById('auth-username').value;
+            const pin = document.getElementById('auth-pin').value;
+            const username = cleanUsername(rawUser);
 
-                document.getElementById('auth-screen').classList.add('hidden');
-                document.getElementById('app-container').classList.remove('hidden');
+            if (!username) return alert("Please enter a valid User ID.");
 
-                setDefaultFormPickers();
-                initFirebaseListeners();
-            } else {
-                currentUser = null;
-                if (spendsRef) spendsRef.off();
-                if (recurringRef) recurringRef.off();
-
-                document.getElementById('app-container').classList.add('hidden');
-                document.getElementById('auth-screen').classList.remove('hidden');
-                document.getElementById('signin-text').textContent = "Sign in with Google";
-                document.getElementById('btn-signin').disabled = false;
-            }
-        });
-
-        function handleGoogleSignIn() {
-            const btn = document.getElementById('btn-signin');
-            const txt = document.getElementById('signin-text');
-            btn.disabled = true;
-            txt.textContent = "Redirecting to Google...";
-
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' });
-            
-            auth.signInWithRedirect(provider).catch(err => {
-                btn.disabled = false;
-                txt.textContent = "Sign in with Google";
-                alert("Sign-in Launch Error (" + err.code + "): " + err.message);
+            const userRef = database.ref(`users/${username}`);
+            userRef.child('credentials').once('value', snapshot => {
+                const creds = snapshot.val();
+                if (creds) {
+                    if (creds.pin === pin) {
+                        loginSuccess(username, rawUser);
+                    } else {
+                        alert("Incorrect PIN for this User ID.");
+                    }
+                } else {
+                    // Register new user profile
+                    userRef.child('credentials').set({ pin: pin, displayName: rawUser }).then(() => {
+                        loginSuccess(username, rawUser);
+                    });
+                }
             });
         }
 
-        function handleSignOut() {
-            if (confirm("Are you sure you want to log out?")) {
-                auth.signOut();
+        function loginSuccess(username, displayName) {
+            currentUserId = username;
+            localStorage.setItem('spend_active_user', username);
+            localStorage.setItem('spend_display_name', displayName);
+
+            document.getElementById('user-badge').textContent = displayName || username;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+
+            spendsRef = database.ref(`users/${username}/spends`);
+            recurringRef = database.ref(`users/${username}/recurring`);
+
+            setDefaultFormPickers();
+            initFirebaseListeners();
+        }
+
+        function handleLogout() {
+            if (confirm("Log out of current workspace?")) {
+                localStorage.removeItem('spend_active_user');
+                localStorage.removeItem('spend_display_name');
+                if (spendsRef) spendsRef.off();
+                if (recurringRef) recurringRef.off();
+                currentUserId = null;
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('auth-pin').value = '';
             }
         }
 
-        // --- 3. REALTIME LISTENERS ---
+        function checkExistingSession() {
+            const savedUser = localStorage.getItem('spend_active_user');
+            const savedName = localStorage.getItem('spend_display_name');
+            if (savedUser) {
+                loginSuccess(savedUser, savedName);
+            }
+        }
+
+        // --- 3. REALTIME DATA LISTENERS ---
         function initFirebaseListeners() {
             spendsRef.on('value', snapshot => {
                 const data = snapshot.val();
@@ -368,8 +386,6 @@
                 }
                 renderHistoryTable(currentSpends);
                 renderDashboardMetrics(currentSpends, currentRecurring);
-            }, err => {
-                alert("Database Read Error: " + err.message);
             });
 
             recurringRef.on('value', snapshot => {
@@ -382,8 +398,6 @@
                 }
                 updateRecurringDropdown(currentRecurring);
                 renderDashboardMetrics(currentSpends, currentRecurring);
-            }, err => {
-                alert("Recurring Read Error: " + err.message);
             });
         }
 
@@ -573,6 +587,7 @@
                 compEl.textContent = "No baseline historical data.";
             }
 
+            // Recurring Widgets & Table
             const widgetContainer = document.getElementById('recurring-widget-list');
             widgetContainer.innerHTML = '';
             const tableBody = document.getElementById('recurring-table-body');
@@ -713,6 +728,8 @@
 
         // --- 8. APP BOOT & PWA ---
         window.onload = function() {
+            checkExistingSession();
+
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').then(reg => {
                     reg.addEventListener('updatefound', () => {
